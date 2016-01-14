@@ -1,5 +1,6 @@
 import socket
 import sys
+import math
 
 kPacketSize = 100
 kPacketHeadSize = 2
@@ -10,9 +11,7 @@ kClientExpectedNumSeq = 100
 ACK = 'ACK'
 SYN = 'SYN'
 DAT = 'DAT'
-
 EMPTY = 'EMPTY'
-    
 
 def decode (data,s,addr):
     global kClientExpectedNumSeq
@@ -21,6 +20,9 @@ def decode (data,s,addr):
     numSeq = data[2:5]
     tipoMsg = data[5:8]
     msg = data[8:]
+   
+    print('-------------TamPacket: ' + tamPacket + ' ---NumSeq:' + numSeq + '---NumSeqServer: ' + str(kClientExpectedNumSeq) + '---TipoMsg: ' + tipoMsg + '----------------------')
+    print('msg:' + msg)
 
     if tipoMsg == SYN:
 	    #setar kClientExpectedNumSeq com numSeq
@@ -31,15 +33,12 @@ def decode (data,s,addr):
         packet = makePacket(EMPTY,ACK,kClientExpectedNumSeq)
         sendPacket(packet,s,addr)
     elif tipoMsg == DAT:
-        print 'MENSAGEM TIPO DAT'
         #checa o numero de sequencia
         if int(numSeq) == kClientExpectedNumSeq:
-            print 'ENTROU NO CKECKSEQNUM = TRUE'
             #se estiver certo:
             #incrementa kClientExpectedNumSeq
             kClientExpectedNumSeq = kClientExpectedNumSeq + 1
             #printa mensagem
-            print msg
             #manda pacote com ACK e kClientExpectedNumSeq (proximo ja incrementado)
             packet = makePacket(EMPTY,ACK,kClientExpectedNumSeq)
             sendPacket(packet,s,addr)
@@ -47,7 +46,6 @@ def decode (data,s,addr):
         #Se estiver errado:
         #manda pacote com ACK e kClientExpectedNumSeq (sem incrementar pra indicar que nao recebeu)
         else:
-            print 'checkNumSeq deu false'
             packet = makePacket(EMPTY,ACK,kClientExpectedNumSeq)
             sendPacket(packet,s,addr)
                      
@@ -64,8 +62,8 @@ def makePacket(msg, tipoMsg, numSeq):
     return packet
 
 def sendPacket(packet,s,addr):
+    print packet
     try:
-        print 'entrou em send packet'
         s.sendto(packet,addr)
     except socket.error:
         print 'Error: could not send packet'
@@ -104,8 +102,6 @@ while 1:
     d = s.recvfrom(1024)
     data = d[0]
     addr = d[1]
-    
-    print data
 
     decode(data,s,addr)
 
