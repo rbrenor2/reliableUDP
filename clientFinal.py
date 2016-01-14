@@ -11,9 +11,14 @@ kPacketHeadSize = 9
 kPacketDataField = kPacketSize - kPacketHeadSize
 
 kClientExpectedNumSeq = 100
-kBase = 0
-kWindowSize = 2
 
+kI = 0
+kNextSeqNum = 100
+kBase = 100
+kWindowSize = 2
+kCheckEnviouTudo = 0
+
+kListeningThread = None
 
 packetsList = []
 
@@ -30,7 +35,7 @@ EMPTY = 'EMPTY'
 
 exitFlag = 0
 
-class myThread (threading.Thread):
+class thread2 (threading.Thread):
     def __init__(self, threadID, name, counter):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -38,9 +43,10 @@ class myThread (threading.Thread):
         self.counter = counter
     def run(self):
         print "Starting " + self.name
-        print_time(self.name, self.counter, 5)
+        listenAcks()
         print "Exiting " + self.name
-
+    def stop(self):
+        self.stopped = True
 
 
 def decode (data,s,addr):
@@ -98,26 +104,48 @@ def makePacket(msg, tipoMsg, numSeq):
     print 'DEBUG:'
     print 'SIZE: ' + str(sizeOfPacket) + ' NUMSEQ: ' + str(numSeq) + ' TIPOMSG: ' + tipoMsg + ' MSG: ' + msg
 
-    return packet
+    return (packet, 0)
 
 def sendPackets(s):
     global packetsList
-    
-    i = 0
+    global kNextSeqNum
+    global kWindowSize
+    global kBase
+    global kI
+    global kListeningThread
     
     print 'LISTA A SER ENVIADA:'
     print packetsList
     
-    sendPacket(packetsList[i],s)
-    checkAck(s)
+    kCheckEnviouTudo = False
+    
+    kListeningThread = thread2(2, 'Thread 2', 2)
+    kListeningThread.start()
 
-    #while 1
-        #if nextSeqNum < kBase + kWindowSize:
-            #sendPacket(packetsList[i],s)
-            #nextSeqNum += 1
-            
-            
+    while not kCheckEnviouTudo:
+        if kI < len(packetsList):
+            if packetsList[kI][1] == 0:
+                sendPacket(packetsList[kI],s)
+                kI+=1
+            else:
+                kI+=1
+        else:
+            kI = 0
+        
+        if checkList(packetsList) == True:
+            kCheckEnviouTudo = True
 
+def checkList(packetsList):
+    aux = 0
+    for i in packetsList:
+        if i[1] == 1:
+            aux +=1
+
+    if aux == len(packetsList):
+        return True
+    else:
+        return False
+    
 def checkAck(s):
     print 'Waiting for Ack...'
     s.settimeout(5.0)
@@ -143,8 +171,18 @@ def checkAck(s):
         print('NAO ENVIOU ACK')
 
 def sendPacket(packet,s):
+    global kListeningThread
+    global kI
+    global packetsList
     try:
-        s.sendto(packet,(HOST,PORT))
+        if kNextSeqNum < kBase+kWindowSize:
+            s.sendto(packet[0],(HOST,PORT))
+            packetAux = packetsList[kI][0]
+            packetsList[kI] = (packetAux, 1)
+        #if kClientExpectedNumSeq == 101:
+            #kListeningThread.stop()
+            #kListeningThread = thread2(2, 'Thread 2', 2)
+            #kListeningThread.start()
     except socket.error:
         print 'Failed to create socket. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
         sys.exit()
@@ -156,18 +194,54 @@ def writing(s):
         makePackets(msg,s)
         sendPackets(s)
 
-        #packet = makePacket(msg,DAT,kClientExpectedNumSeq)
-        #sendPacket(packet,s)
-
 def listenAcks():
-    print 'Waiting for Ack with numSeq:' + kClientExpectedNumSeq
-    s.settimeout(5.0)
-    d = s.recvfrom(1024)
-    data = d[0]
-    addr = d[1]
-    print('Timeout funcionou')
+    global kListeningThread
+    global kNextSeqNum
+    global s
 
+    while 1:    
+        print 'Waiting for Ack with numSeq:' + str(kClientExpectedNumSeq)
+        try:
+            s.settimeout(20.0)
+            d = s.recvfrom(1024)
+            data = d[0]
+            addr = d[1]
+            print 'LISTENacks escutou isso: ' + data
+
+            #decode
+            tamPacket = data[0:2]
+            numSeq = data[2:5]
+            tipoMsg = data[5:8]
+            msg = data[8:]
+       
+        
+            #base anda o numero de seq da MSG ACK que ele leu
+            kBase = int(numSeq)
+            #se base ficar igual o nextSeqNum, para o timer (kill thread)
+            if kBase == kNextSeqNum:
+                kListeningThread.stop()  
+            #senao reinicia a thread
+            else:
+                kListeningThread = thread2(2, 'Thread 2', 2)
+                kListeningThread.start()      
+ 
+        except socket.timeout:
+            print'timedOut: ferrou!'
+            kListeningThread.vlock.acquire()
+            kNextSeqNum = kBase
+            zeraAlgunsPacketsList()
+            kListeningThread.vlock.release()
+        #reenviar todos os dados ainda nao confirmados e reiniciar o timer(thread)
+
+def zeraAlgunsPacketsList():
+    global kBase
+    global packetsList
     
+    for i in packetsList:
+        if packetsList[i] > kBase:
+            packetAux = packetsList[i][0]
+            packetsList[i] = (packetAux, 0)
+
 	
 HOST = 'localHost'   # Symbolic name meaning all available interfaces
 PORT = 5000 # Arbitrary non-privileged port
@@ -182,9 +256,17 @@ except s.error, msg:
     print 'Failed to create socket. Error Code :'
     sys.exit()
 
-#checkFirstAck(s)
-
 writing(s)
+
+#cria thread
+#writingThread = thread1(1, 'Thread 1', 1)
+
+#start threads
+#writingThread.start()
+
+
+
+
 
 
 
