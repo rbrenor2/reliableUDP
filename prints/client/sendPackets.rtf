@@ -1,0 +1,11 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1404\cocoasubrtf110
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 -Primeiramente cria uma segunda thread que ir\'e1 usar a fun\'e7\'e3o listeningAcks() para ouvir do servidor os acks que forem chegando relacionados aos pacotes enviados.\
+-Come\'e7a a enviar todos os pacotes contidos na lista global de pacotes. Tenta enviar todos os pacotes cujo o seu marcador (na tupla) \'e9 0 (indicando que ainda n\'e3o foram enviados).\
+-O la\'e7o faz isso at\'e9 que todos sejam efetivamente enviados.\
+-A cada itera\'e7\'e3o o la\'e7o usa a fun\'e7\'e3o checkList para testar se ainda faltam pacotes a serem enviados na lista. Se faltarem, o la\'e7o continua, se n\'e3o, a vari\'e1vel kCheckEnviouTudo rece o valor True e o la\'e7o \'e9 terminado.\
+-A fun\'e7\'e3o tamb\'e9m faz uso da fun\'e7\'e3o auxiliar sendPacket(), respons\'e1vel pelo envio de cada pacote.}
